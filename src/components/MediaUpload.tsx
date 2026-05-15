@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Camera, Trash2, Film } from "lucide-react";
+import { Camera, ImageIcon, FolderOpen, Trash2, Film, Loader2 } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
 import { MediaFile } from "@/types";
 import { uploadMedia } from "@/lib/supabase";
@@ -16,7 +16,11 @@ interface MediaUploadProps {
 export function MediaUpload({ projectId, itemId, mediaFiles }: MediaUploadProps) {
   const addMedia = useAppStore((s) => s.addMediaToItem);
   const removeMedia = useAppStore((s) => s.removeMediaFromItem);
-  const inputRef = useRef<HTMLInputElement>(null);
+
+  const cameraRef = useRef<HTMLInputElement>(null);
+  const galleryRef = useRef<HTMLInputElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
   const [uploading, setUploading] = useState(false);
 
   async function handleFiles(e: React.ChangeEvent<HTMLInputElement>) {
@@ -25,23 +29,23 @@ export function MediaUpload({ projectId, itemId, mediaFiles }: MediaUploadProps)
     setUploading(true);
     try {
       for (const file of files) {
-        const isVideo = file.type.startsWith("video/");
         const url = await uploadMedia(file, projectId);
         addMedia(projectId, itemId, {
           id: uuidv4(),
           url,
           name: file.name,
-          type: isVideo ? "video" : "image",
+          type: file.type.startsWith("video/") ? "video" : "image",
         });
       }
     } finally {
       setUploading(false);
-      if (inputRef.current) inputRef.current.value = "";
+      e.target.value = "";
     }
   }
 
   return (
     <div>
+      {/* Thumbnails */}
       {mediaFiles.length > 0 && (
         <div className="flex flex-wrap gap-2 mb-3">
           {mediaFiles.map((m) => (
@@ -56,7 +60,9 @@ export function MediaUpload({ projectId, itemId, mediaFiles }: MediaUploadProps)
               ) : (
                 <div className="w-full h-full flex flex-col items-center justify-center bg-gray-100 rounded-lg border border-gray-200">
                   <Film size={20} className="text-gray-500" />
-                  <span className="text-[10px] text-gray-500 mt-1 px-1 truncate w-full text-center">{m.name}</span>
+                  <span className="text-[10px] text-gray-500 mt-1 px-1 truncate w-full text-center">
+                    {m.name}
+                  </span>
                 </div>
               )}
               <button
@@ -71,25 +77,82 @@ export function MediaUpload({ projectId, itemId, mediaFiles }: MediaUploadProps)
         </div>
       )}
 
-      <button
-        type="button"
-        onClick={() => inputRef.current?.click()}
-        disabled={uploading}
-        className="flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 border-dashed border-gray-300 text-gray-500 text-sm hover:border-blue-400 hover:text-blue-500 transition-colors w-full justify-center"
-      >
-        <Camera size={18} />
-        {uploading ? "Enviando..." : "Adicionar Foto / Vídeo"}
-      </button>
+      {/* Action buttons */}
+      {uploading ? (
+        <div className="flex items-center justify-center gap-2 py-2.5 text-sm text-gray-500">
+          <Loader2 size={16} className="animate-spin" />
+          Enviando...
+        </div>
+      ) : (
+        <div className="flex gap-2">
+          <UploadButton
+            icon={<Camera size={16} />}
+            label="Câmera"
+            onClick={() => cameraRef.current?.click()}
+          />
+          <UploadButton
+            icon={<ImageIcon size={16} />}
+            label="Galeria"
+            onClick={() => galleryRef.current?.click()}
+          />
+          <UploadButton
+            icon={<FolderOpen size={16} />}
+            label="Arquivo"
+            onClick={() => fileRef.current?.click()}
+          />
+        </div>
+      )}
 
+      {/* Camera — forces native camera directly */}
       <input
-        ref={inputRef}
+        ref={cameraRef}
         type="file"
-        accept="image/*,video/*"
-        multiple
+        accept="image/*"
         capture="environment"
         onChange={handleFiles}
         className="hidden"
       />
+
+      {/* Gallery — opens photo/video library on mobile */}
+      <input
+        ref={galleryRef}
+        type="file"
+        accept="image/*,video/*"
+        multiple
+        onChange={handleFiles}
+        className="hidden"
+      />
+
+      {/* Files — opens full file manager */}
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*,video/*,application/pdf"
+        multiple
+        onChange={handleFiles}
+        className="hidden"
+      />
     </div>
+  );
+}
+
+function UploadButton({
+  icon,
+  label,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl border-2 border-dashed border-gray-300 text-gray-500 text-xs hover:border-blue-400 hover:text-blue-500 transition-colors"
+    >
+      {icon}
+      {label}
+    </button>
   );
 }
