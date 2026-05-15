@@ -27,11 +27,13 @@ export type ProjectStatus = "em_andamento" | "concluido" | "pendente";
 
 export interface Project {
   id: string;
+  userId: string;        // Supabase user ID (multitenancy)
   // Dados da obra
   name: string;          // Empreendimento
   address: string;
   cep: string;
   client: string;        // Construtora
+  clientLogoUrl?: string; // Logo da construtora (base64 ou URL)
   // Dados do equipamento
   equipmentId: string;   // Identificação do equipamento
   elevatorType: string;  // Tipo de elevador

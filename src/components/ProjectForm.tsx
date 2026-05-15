@@ -2,20 +2,23 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { ImagePlus, X } from "lucide-react";
 import { useAppStore } from "@/lib/store";
+import { getUser } from "@/lib/auth";
 import { Project, ProjectStatus } from "@/types";
 
 interface ProjectFormProps {
   initial?: Project;
 }
 
-type FormData = Omit<Project, "id" | "createdAt" | "updatedAt" | "auditItems">;
+type FormData = Omit<Project, "id" | "createdAt" | "updatedAt" | "auditItems" | "userId">;
 
 const DEFAULT: FormData = {
   name: "",
   address: "",
   cep: "",
   client: "",
+  clientLogoUrl: "",
   equipmentId: "",
   elevatorType: "Passageiros",
   elevatorModel: "",
@@ -43,6 +46,7 @@ export function ProjectForm({ initial }: ProjectFormProps) {
           address: initial.address,
           cep: initial.cep ?? "",
           client: initial.client,
+          clientLogoUrl: initial.clientLogoUrl ?? "",
           equipmentId: initial.equipmentId ?? "",
           elevatorType: initial.elevatorType ?? "Passageiros",
           elevatorModel: initial.elevatorModel ?? "",
@@ -64,13 +68,24 @@ export function ProjectForm({ initial }: ProjectFormProps) {
     setForm((prev) => ({ ...prev, [name]: value }));
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => set("clientLogoUrl", reader.result as string);
+    reader.readAsDataURL(file);
+    // Reset input so the same file can be re-selected if needed
+    e.target.value = "";
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (initial) {
       updateProject(initial.id, form);
       router.push(`/projects/${initial.id}`);
     } else {
-      const project = createProject(form);
+      const user = await getUser();
+      const project = createProject({ ...form, userId: user?.id ?? "" });
       router.push(`/projects/${project.id}`);
     }
   }
@@ -85,6 +100,46 @@ export function ProjectForm({ initial }: ProjectFormProps) {
           <Field label="Construtora / Cliente *" value={form.client} onChange={(v) => set("client", v)} required placeholder="Ex: Melnick" />
           <Field label="Endereço" value={form.address} onChange={(v) => set("address", v)} placeholder="Ex: Rua Hilário Ribeiro, 150" />
           <Field label="CEP" value={form.cep} onChange={(v) => set("cep", v)} placeholder="Ex: 90510-040" />
+
+          {/* Logo da Construtora */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              Logo da Construtora
+            </label>
+            {form.clientLogoUrl ? (
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-32 h-14 bg-gray-50 border border-gray-200 rounded-lg flex items-center justify-center overflow-hidden">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={form.clientLogoUrl}
+                    alt="Logo da construtora"
+                    className="max-w-full max-h-full object-contain"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => set("clientLogoUrl", "")}
+                  className="flex items-center gap-1 text-sm text-red-600 hover:text-red-700 px-2 py-1 rounded-lg hover:bg-red-50 transition-colors"
+                >
+                  <X size={14} />
+                  Remover
+                </button>
+              </div>
+            ) : null}
+            <label className="flex items-center gap-2 w-full rounded-xl border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500 hover:border-blue-400 hover:text-blue-600 cursor-pointer transition-colors">
+              <ImagePlus size={16} />
+              {form.clientLogoUrl ? "Trocar logo" : "Selecionar imagem da logo"}
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleLogoUpload}
+                className="sr-only"
+              />
+            </label>
+            <p className="text-xs text-gray-400 mt-1">
+              Opcional. Aparecerá no cabeçalho de todas as páginas do PDF.
+            </p>
+          </div>
         </div>
       </section>
 

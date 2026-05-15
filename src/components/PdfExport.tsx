@@ -404,7 +404,9 @@ function RunningHeader({ project }: { project: Project }) {
         <Text style={S.runningSubtitle}>{project.name}  ·  {project.client}</Text>
       </View>
       <View style={S.runningLogo}>
-        <Image src="/logos/logo-melnick.png" style={S.runningLogoImg} />
+        {project.clientLogoUrl ? (
+          <Image src={project.clientLogoUrl} style={S.runningLogoImg} />
+        ) : null}
       </View>
     </View>
   );
@@ -450,7 +452,9 @@ function CoverPage({ project }: { project: Project }) {
         </View>
         <View style={S.coverBandCenter} />
         <View style={S.coverLogo}>
-          <Image src="/logos/logo-melnick.png" style={S.coverLogoImg} />
+          {project.clientLogoUrl ? (
+            <Image src={project.clientLogoUrl} style={S.coverLogoImg} />
+          ) : null}
         </View>
       </View>
 
