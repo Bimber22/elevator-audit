@@ -1,28 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Plus, Activity, LogOut } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { ProjectCard } from "@/components/ProjectCard";
-import { getUser, signOut } from "@/lib/auth";
+import { signOut } from "@/lib/auth";
 
 export default function HomePage() {
   const router = useRouter();
-  const allProjects = useAppStore((s) => s.projects);
-  const [userId, setUserId] = useState<string | undefined>(undefined);
+  const projects = useAppStore((s) => s.projects);
+  const loading = useAppStore((s) => s.loading);
+  const loadProjects = useAppStore((s) => s.loadProjects);
 
   useEffect(() => {
-    getUser().then((user) => setUserId(user?.id));
-  }, []);
-
-  const projects =
-    userId === undefined
-      ? [] // still loading
-      : allProjects
-          .filter((p) => !userId || p.userId === userId)
-          .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+    loadProjects();
+  }, [loadProjects]);
 
   async function handleLogout() {
     await signOut();
@@ -61,7 +55,7 @@ export default function HomePage() {
 
       {/* Content */}
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-6">
-        {userId === undefined ? (
+        {loading ? (
           <div className="flex justify-center py-20">
             <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
           </div>

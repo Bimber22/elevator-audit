@@ -1,6 +1,6 @@
 "use client";
 
-import { use } from "react";
+import { use, useEffect } from "react";
 import Link from "next/link";
 import { ArrowLeft, Building2, Calendar, User, Pencil, CheckCircle2, XCircle, Clock } from "lucide-react";
 import { useAppStore } from "@/lib/store";
@@ -47,8 +47,23 @@ const DELIVERY_OPTIONS: {
 export default function ProjectPage({ params }: PageProps) {
   const { id } = use(params);
   const project = useAppStore((s) => s.projects.find((p) => p.id === id));
+  const loading = useAppStore((s) => s.loading);
+  const loadProjects = useAppStore((s) => s.loadProjects);
   const initializeProjectItems = useAppStore((s) => s.initializeProjectItems);
   const updateProject = useAppStore((s) => s.updateProject);
+
+  // Load from Supabase if accessed directly via URL (store is empty)
+  useEffect(() => {
+    loadProjects();
+  }, [loadProjects]);
+
+  if (loading && !project) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   if (!project) {
     return (

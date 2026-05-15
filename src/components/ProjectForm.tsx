@@ -71,11 +71,23 @@ export function ProjectForm({ initial }: ProjectFormProps) {
   function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => set("clientLogoUrl", reader.result as string);
-    reader.readAsDataURL(file);
-    // Reset input so the same file can be re-selected if needed
     e.target.value = "";
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new window.Image();
+      img.onload = () => {
+        const MAX = 400;
+        const ratio = Math.min(1, MAX / Math.max(img.width, img.height));
+        const canvas = document.createElement("canvas");
+        canvas.width = img.width * ratio;
+        canvas.height = img.height * ratio;
+        canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
+        set("clientLogoUrl", canvas.toDataURL("image/jpeg", 0.8));
+      };
+      img.src = ev.target?.result as string;
+    };
+    reader.readAsDataURL(file);
   }
 
   async function handleSubmit(e: React.FormEvent) {
