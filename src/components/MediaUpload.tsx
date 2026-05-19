@@ -13,6 +13,28 @@ interface MediaUploadProps {
   mediaFiles: MediaFile[];
 }
 
+// Compress image to base64 (max 1200px, JPEG 85%).
+// Returns a data URL that works in any context — browser, PDF worker, other devices.
+function compressImage(file: File): Promise<string> {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new window.Image();
+      img.onload = () => {
+        const MAX = 1200;
+        const ratio = Math.min(1, MAX / Math.max(img.width, img.height));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round(img.width * ratio);
+        canvas.height = Math.round(img.height * ratio);
+        canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/jpeg", 0.85));
+      };
+      img.src = ev.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 export function MediaUpload({ projectId, itemId, mediaFiles }: MediaUploadProps) {
   const addMedia = useAppStore((s) => s.addMediaToItem);
   const removeMedia = useAppStore((s) => s.removeMediaFromItem);
@@ -29,12 +51,19 @@ export function MediaUpload({ projectId, itemId, mediaFiles }: MediaUploadProps)
     setUploading(true);
     try {
       for (const file of files) {
-        const url = await uploadMedia(file, projectId);
+        const isVideo = file.type.startsWith("video/");
+
+        // Images → compress to base64 (persistent, works in PDF and across devices)
+        // Videos → upload to Supabase Storage (too large for base64)
+        const url = isVideo
+          ? await uploadMedia(file, projectId)
+          : await compressImage(file);
+
         addMedia(projectId, itemId, {
           id: uuidv4(),
           url,
           name: file.name,
-          type: file.type.startsWith("video/") ? "video" : "image",
+          type: isVideo ? "video" : "image",
         });
       }
     } finally {
@@ -81,70 +110,27 @@ export function MediaUpload({ projectId, itemId, mediaFiles }: MediaUploadProps)
       {uploading ? (
         <div className="flex items-center justify-center gap-2 py-2.5 text-sm text-gray-500">
           <Loader2 size={16} className="animate-spin" />
-          Enviando...
+          Processando…
         </div>
       ) : (
         <div className="flex gap-2">
-          <UploadButton
-            icon={<Camera size={16} />}
-            label="Câmera"
-            onClick={() => cameraRef.current?.click()}
-          />
-          <UploadButton
-            icon={<ImageIcon size={16} />}
-            label="Galeria"
-            onClick={() => galleryRef.current?.click()}
-          />
-          <UploadButton
-            icon={<FolderOpen size={16} />}
-            label="Arquivo"
-            onClick={() => fileRef.current?.click()}
-          />
+          <UploadButton icon={<Camera size={16} />} label="Câmera" onClick={() => cameraRef.current?.click()} />
+          <UploadButton icon={<ImageIcon size={16} />} label="Galeria" onClick={() => galleryRef.current?.click()} />
+          <UploadButton icon={<FolderOpen size={16} />} label="Arquivo" onClick={() => fileRef.current?.click()} />
         </div>
       )}
 
-      {/* Camera — forces native camera directly */}
-      <input
-        ref={cameraRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        onChange={handleFiles}
-        className="hidden"
-      />
-
-      {/* Gallery — opens photo/video library on mobile */}
-      <input
-        ref={galleryRef}
-        type="file"
-        accept="image/*,video/*"
-        multiple
-        onChange={handleFiles}
-        className="hidden"
-      />
-
-      {/* Files — opens full file manager */}
-      <input
-        ref={fileRef}
-        type="file"
-        accept="image/*,video/*,application/pdf"
-        multiple
-        onChange={handleFiles}
-        className="hidden"
-      />
+      {/* Camera — forces native camera */}
+      <input ref={cameraRef} type="file" accept="image/*" capture="environment" onChange={handleFiles} className="hidden" />
+      {/* Gallery — photo/video library */}
+      <input ref={galleryRef} type="file" accept="image/*,video/*" multiple onChange={handleFiles} className="hidden" />
+      {/* Files — full file manager */}
+      <input ref={fileRef} type="file" accept="image/*,video/*,application/pdf" multiple onChange={handleFiles} className="hidden" />
     </div>
   );
 }
 
-function UploadButton({
-  icon,
-  label,
-  onClick,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  onClick: () => void;
-}) {
+function UploadButton({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick: () => void }) {
   return (
     <button
       type="button"
